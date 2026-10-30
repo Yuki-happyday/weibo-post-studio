@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>微博卡片 · 效果审查 DEMO</title>
+<link rel="preload" as="font" type="font/woff2" href="./assets/fonts/weibo-sans.woff2" crossorigin>
+<link rel="stylesheet" href="./assets/style.css">
+<style>
+  /* --- demo 页覆盖：允许滚动，不用编辑器的满屏布局 --- */
+  html,body{height:auto;overflow:auto}
+  body{background:#0b0c0e;padding:0}
+
+  /* --- 顶栏 --- */
+  .d-bar{
+    position:sticky;top:0;z-index:30;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:13px 26px;background:rgba(11,12,14,.93);
+    border-bottom:1px solid var(--line);backdrop-filter:blur(8px);
+  }
+  .d-brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .d-mark{
+    width:32px;height:32px;flex:0 0 32px;border-radius:9px;background:var(--brand);
+    display:flex;align-items:center;justify-content:center;color:#fff;
+  }
+  .d-brand strong{display:block;font-size:13.5px;font-weight:650;letter-spacing:.2px}
+  .d-brand small{display:block;font-size:10.5px;color:var(--tx-3);margin-top:2px;letter-spacing:.3px}
+  .d-tools{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+  .d-zoom{
+    display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:2px;
+  }
+  .d-zoom button{
+    border:0;background:transparent;color:var(--tx-3);font-size:11.5px;
+    padding:5px 10px;border-radius:6px;cursor:pointer;transition:.14s;
+  }
+  .d-zoom button:hover{color:var(--tx)}
+  .d-zoom button.on{background:#2a2e34;color:#fff}
+  .d-open{
+    display:inline-flex;align-items:center;gap:6px;height:31px;padding:0 13px;border-radius:8px;
+    background:var(--brand);color:#fff;font-size:12px;font-weight:600;text-decoration:none;
+  }
+  .d-open:hover{background:#ff9425}
+
+  /* --- 说明条 --- */
+  .d-intro{
+    padding:20px 26px 4px;max-width:1180px;
+    font-size:12.5px;line-height:1.9;color:var(--tx-3);
+  }
+  .d-intro b{color:var(--tx-2);font-weight:600}
+  .d-intro code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;
+    background:#16191d;border:1px solid var(--line-soft);border-radius:4px;padding:1px 5px;color:#8fa5c4;
+  }
+
+  /* --- 画廊：按列优先排布，保证 01→10 的阅读顺序 --- */
+  .d-gallery{display:flex;align-items:flex-start;gap:24px;padding:18px 26px 100px}
+  .d-col{display:flex;flex-direction:column;gap:30px;flex:0 0 auto;min-width:0}
+  .d-scene{display:block}
+
+  .d-cap h3{
+    display:flex;align-items:center;gap:7px;
+    font-size:12px;font-weight:600;color:var(--tx);letter-spacing:.2px;line-height:1.4;
+  }
+  .d-cap h3 .idx{
+    font-size:9.5px;color:#0b0c0e;background:#8a9099;border-radius:3px;
+    padding:1px 4px;font-variant-numeric:tabular-nums;font-weight:700;flex:0 0 auto;
+  }
+  .d-cap h3 .sz{
+    margin-left:auto;font-size:9.5px;color:var(--tx-3);font-weight:500;
+    font-variant-numeric:tabular-nums;letter-spacing:.3px;flex:0 0 auto;
+  }
+  .d-cap p{margin:4px 0 10px;font-size:10.5px;line-height:1.75;color:var(--tx-3)}
+  .d-cap p em{font-style:normal;color:#8fa5c4}
+
+  /* 只缩卡片，不缩标题与说明 */
+  .d-card{zoom:var(--z,.78);line-height:0}
+  .d-frame{
+    position:relative;display:inline-block;border-radius:2px;
+    box-shadow:0 1px 2px rgba(0,0,0,.4),0 14px 46px rgba(0,0,0,.55);
+  }
+  .d-frame.is-dark{box-shadow:0 0 0 1px #2b3037,0 14px 46px rgba(0,0,0,.7)}
+  .d-save{
+    flex:0 0 auto;border:0;background:transparent;padding:0 0 0 8px;
+    color:#c9761f;font-size:9.5px;font-weight:600;line-height:1.4;cursor:pointer;
+    letter-spacing:.2px;
+  }
+  .d-save:hover{color:var(--brand);text-decoration:underline}
+  .d-save[disabled]{color:var(--tx-3);cursor:default;text-decoration:none}
+
+  .d-skeleton{
+    width:402px;height:520px;background:#121418;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--tx-3);font-size:11.5px;letter-spacing:.4px;
+  }
+  #stage{position:fixed;left:0;top:0;width:460px;height:900px;border:0;visibility:hidden;pointer-events:none;z-index:-1}
+  .d-fail{
+    max-width:640px;margin:60px auto;padding:18px 20px;border-radius:10px;
+    background:#1b1214;border:1px solid #4a2226;color:#e6b6bb;font-size:12.5px;line-height:1.85;
+  }
+  .d-fail b{color:#ff8b95}
+</style>
+</head>
+<body>
+
+<header class="d-bar">
+  <div class="d-brand">
+    <span class="d-mark">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.6" cy="9.6" r="1.7"/><path d="M20.5 16.2l-4.7-4.7-7 7"/></svg>
+    </span>
+    <span>
+      <strong>微博卡片 · 效果审查 DEMO</strong>
+      <small>10 个场景 · 由编辑器同一套渲染代码实时生成</small>
+    </span>
+  </div>
+  <div class="d-tools">
+    <div class="d-zoom" id="zoom">
+      <button type="button" data-z="0.5">50%</button>
+      <button type="button" data-z="0.78" class="on">78%</button>
+      <button type="button" data-z="1">100%</button>
+    </div>
+    <a class="d-open" href="./index.html">打开编辑器
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M12.5 5.5 19 12l-6.5 6.5"/></svg>
+    </a>
+  </div>
+</header>
+
+<p class="d-intro">
+  <b>这是审查页，不是第二个编辑器。</b>下面每张卡片都是经 <code>WeiboStudio</code> 接口灌数据、由 <code>app.js</code> 的
+  <code>postHtml()</code> 渲染出来的真实 DOM，与你在编辑器里看到、最终导出的完全同源——不存在"demo 一套、导出另一套"。
+  每张卡片标题行右侧的「存图」走的是同一条 html2canvas 导出链路；要改文案或换图请点右上角进编辑器。</p>
+
+<main class="d-gallery" id="gallery"></main>
+<iframe id="stage" src="./index.html" title="render stage"></iframe>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ========== 占位图：带色相渐变的假照片，便于肉眼确认哪张图落进了哪个格子 ========== */
+  function ph(seed, w, h, label) {
+    w = w || 600; h = h || 600;
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const g = cv.getContext('2d');
+    const hue = (seed * 43 + 18) % 360;
+    const grd = g.createLinearGradient(0, 0, w, h);
+    grd.addColorStop(0, 'hsl(' + hue + ',58%,64%)');
+    grd.addColorStop(.55, 'hsl(' + ((hue + 24) % 360) + ',52%,52%)');
+    grd.addColorStop(1, 'hsl(' + ((hue + 52) % 360) + ',46%,38%)');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h);
+
+    g.globalAlpha = .15; g.fillStyle = '#fff';
+    g.beginPath(); g.arc(w * .78, h * .22, Math.min(w, h) * .3, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.arc(w * .18, h * .82, Math.min(w, h) * .22, 0, Math.PI * 2); g.fill();
+    g.globalAlpha = 1;
+
+    if (label) {
+      g.fillStyle = 'rgba(255,255,255,.85)';
+      g.font = '600 ' + Math.round(Math.min(w, h) * .3) + 'px "Helvetica Neue",Arial,sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText(label, w / 2, h / 2 + Math.min(w, h) * .015);
+    }
+    return { src: cv.toDataURL('image/jpeg', .84), w: w, h: h };
+  }
+
+  const img = (i, w, h) => ph(i, w, h, String(i + 1).padStart(2, '0'));
+  const set = (arr) => arr.map((i) => img(i));
+
+  /* ========== 评论 ========== */
+  const C_TEXT = [
+    { name: '寿巴文火炼金', text: '23年是好年份，羡慕。', time: '5-24 12:55', from: '广东', likes: '20',
+      reply: { enabled: true, text: '法考元年才值得羡慕，自由且洒脱-：23年开始慢慢收紧了', more: '共 4 条回复' } },
+    { name: '一只小法条', text: '这段我反复看了三遍，属实是真实写照。', time: '5-24 13:20', from: '北京', likes: '6',
+      reply: { enabled: false, text: '', more: '' } }
+  ];
+  const comments = () => C_TEXT.map((c, i) => Object.assign({ id: 'c' + i, avatar: '' }, JSON.parse(JSON.stringify(c))));
+
+  /* ========== 场景 ========== */
+  const BASE = {
+    layout: 'detail', theme: 'light', width: 402,
+    name: '草莓大棚法考', avatar: '', crown: true,
+    pinned: false, showFollow: true, fold: false,
+    text: '',
+    time: '5-24 10:14', device: 'iPhone 17 Pro', location: '北京',
+    showTrans: true, nLike: '384', nComment: '28', nRepost: '3',
+    sortLabel: '按热度', showComments: true, showCommentBox: false
+  };
+
+  const SCENES = [
+    {
+      t: '详情页 · 标准',
+      d: '基线场景。核对头像圆形裁切、昵称与皇冠、时间/机型的次级灰、正文段落间距、四个操作图标、灰条高度、「赞 / 评论 / 转发」的红色下划线，以及评论区里的博主回复灰卡。',
+      m: { text: '把这条微博的发文流程重新捋了一遍：先写正文，再配图，最后检查换行。\n\n排版这件事，细节比想象中重要——行距、段间距、标点全角半角，差一点就不像。\n\n#微博排版# 这个坑我踩过，欢迎交流。' },
+      c: comments()
+    },
+    {
+      t: '详情页 · 九宫格',
+      d: '9 张图走三列。关键看 <em>minmax(0,1fr)</em> 与 <em>min-height:0</em> 是否生效——漏一个，格子就会被图片撑破。',
+      m: { text: '周末把器材全翻出来擦了一遍，顺手整理成一页。\n\n#摄影日常# 第三张是意外拍到的。', nLike: '1.2万', nComment: '386', nRepost: '204' },
+      media: set([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+      c: comments()
+    },
+    {
+      t: '详情页 · 转发（原帖带图）',
+      d: '转发理由在外、原帖做成白底描边引用卡。原帖自带 4 图（2×2），主帖自己另有 2 图——两套配图必须各归各位，不许串格。',
+      m: {
+        text: '这个观点我认同。补充一句：真正的门槛不在工具，在于你愿不愿意把同一件事做够五百遍。',
+        nLike: '892', nComment: '64', nRepost: '118',
+        repost: { enabled: true, name: '排版研究所', avatar: '', time: '5-24 09:02',
+          text: '很多人以为排版是审美问题，其实是耐心问题。#设计日常# 慢一点，就能看出差别。' }
+      },
+      rpMedia: set([11, 12, 13, 14]),
+      media: set([20, 21]),
+      c: comments()
+    },
+    {
+      t: '详情页 · 长文折叠',
+      d: '正文超过 5 行截断，末尾挂蓝色「… 全文」。注意是按<em>可见行数</em>算、不是按字数——换卡片宽度，折点会跟着变。',
+      m: {
+        fold: true,
+        text: '去年这个时候我还在纠结要不要开始写东西。\n\n真正动手之后才发现，最难的不是写，是承认自己写得很差，然后继续写。第一篇发出去只有三个人看，其中两个是我自己换的号。\n\n后来我给自己定了个很笨的规矩：不管写成什么样，每周必须发一条。写了三个月，回头看第一周的东西，几乎是另一个人写的——不是文笔变了，是终于知道自己想说什么了。\n\n所以如果你也在犹豫，我的建议只有一句：先发出去，再谈好不好。',
+        nLike: '2.8万', nComment: '1204', nRepost: '3562'
+      },
+      c: comments()
+    },
+    {
+      t: '详情页 · 四图 2×2',
+      d: '4 张图走两列两行，格子必须严格正方。同时核对配图左右边距是否与正文对齐。',
+      m: { text: '四个季节，同一扇窗。', nLike: '574', nComment: '42', nRepost: '19' },
+      media: set([30, 31, 32, 33]),
+      c: comments()
+    },
+    {
+      t: '详情页 · 单图',
+      d: '单图不裁成正方，按原比例显示并限高 430px。竖图应能看出：高度封顶、宽度不变形、左右不出血。',
+      m: { text: '今天的天色，值得单独发一条。', nLike: '3204', nComment: '96', nRepost: '88' },
+      media: [ph(40, 600, 750, '竖图')],
+      c: comments()
+    },
+    {
+      t: '信息流版式',
+      d: '时间线里的形态：不显示「发布于」、图标旁带数字、没有标签栏与评论区。用来比对同一内容在两种版式下的间距差。',
+      m: { layout: 'feed', text: '把这条微博的发文流程重新捋了一遍：先写正文，再配图，最后检查换行。\n\n#微博排版# 这个坑我踩过，欢迎交流。', nLike: '384', nComment: '28', nRepost: '3' },
+      media: set([50, 51, 52])
+    },
+    {
+      t: '暗色主题',
+      d: '深色卡片：整组变量切换，正文转浅灰、分隔条转黑、引用卡与灰卡同步加深。重点看有没有白底残留、链接蓝是否还看得清。',
+      m: {
+        theme: 'dark',
+        text: '凌晨两点的排版，和白天的排版，是两个东西。\n\n#深夜排版# 这句话我说过很多次了。',
+        nLike: '1876', nComment: '94', nRepost: '51',
+        repost: { enabled: true, name: '排版研究所', avatar: '', time: '5-24 09:02', text: '夜间模式的对比度是最容易被忽略的一环。' }
+      },
+      media: set([60, 61, 62]),
+      c: comments()
+    },
+    {
+      t: '窄屏 360 · 置顶',
+      d: '卡片宽度改为 360px，检验缩窄后正文重新折行、六图不溢出、置顶标记与头像行不错位。',
+      m: {
+        width: 360, pinned: true,
+        text: '换了台小屏机器，顺手把卡片宽度也调窄了。\n\n宽度一变，折行位置全变——这就是为什么不能按字数判断折叠。',
+        nLike: '204', nComment: '12', nRepost: '5'
+      },
+      media: set([70, 71, 72, 73, 74, 75]),
+      c: comments()
+    },
+    {
+      t: '极简 · 无评论无关注',
+      d: '关掉关注按钮、翻译行与评论区，只留帖子主体。用于核对收尾留白：底部不应出现多余空白或缺一条分隔线。',
+      m: {
+        showFollow: false, showTrans: false, showComments: false, location: '',
+        text: '一句话的微博，也有它该有的呼吸感。',
+        nLike: '86', nComment: '0', nRepost: '2'
+      }
+    }
+  ];
+
+  /* ========== 布局 ========== */
+  const gallery = document.getElementById('gallery');
+  const frame = document.getElementById('stage');
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const el = (tag, cls, html) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html != null) e.innerHTML = html;
+    return e;
+  };
+  const curZoom = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--z')) || .78;
+
+  function build() {
+    gallery.innerHTML = '';
+    const z = curZoom();
+    const gap = 24, pad = 26;
+    const inner = Math.max(320, gallery.clientWidth - pad * 2);
+    const cw = 402 * z;
+    const n = Math.max(1, Math.min(SCENES.length, Math.floor((inner + gap) / (cw + gap))));
+
+    /* 均分而不是 Math.ceil：10 张分 4 列时 ceil 会得出 3/3/3/1，
+       最后一列只剩一张、下面空掉一大片；按 3/3/2/2 分配高度才接近。 */
+    const base = Math.floor(SCENES.length / n);
+    const rem = SCENES.length % n;
+    const bounds = [];
+    let acc = 0;
+    for (let c = 0; c < n; c++) { bounds.push(acc); acc += base + (c < rem ? 1 : 0); }
+    const colOf = i => {
+      for (let c = n - 1; c >= 0; c--) if (i >= bounds[c]) return c;
+      return 0;
+    };
+
+    const cols = [];
+    for (let c = 0; c < n; c++) {
+      const col = el('div', 'd-col');
+      /* 必须显式给宽：flex item 的 auto 宽会按说明文字的 max-content 撑开，撑到卡片之外 */
+      col.style.width = Math.round(cw) + 'px';
+      gallery.appendChild(col);
+      cols.push(col);
+    }
+
+    SCENES.forEach((sc, i) => {
+      const scene = el('figure', 'd-scene');
+      scene.dataset.i = i;
+
+      const cap = el('figcaption', 'd-cap');
+      cap.appendChild(el('h3', null,
+        '<span class="idx">' + String(i + 1).padStart(2, '0') + '</span>' + sc.t +
+        '<span class="sz" data-sz="' + i + '">渲染中</span>' +
+        '<button type="button" class="d-save" data-save="' + i + '">存图</button>'));
+      cap.appendChild(el('p', null, sc.d));
+      scene.appendChild(cap);
+
+      const zoomBox = el('div', 'd-card');
+      const box = el('div', 'd-frame');
+      box.dataset.frame = i;
+      box.appendChild(el('div', 'd-skeleton', '渲染中…'));
+      zoomBox.appendChild(box);
+      scene.appendChild(zoomBox);
+
+      cols[colOf(i)].appendChild(scene);
+    });
+  }
+
+  /* file:// 下 iframe 是 opaque origin，父页拿不到 contentWindow，
+     卡片会永远停在「渲染中」。与其让人猜，不如直接说清楚怎么打开。 */
+  function showFileHint() {
+    const bar = document.createElement('div');
+    bar.style.cssText = 'margin:16px 26px 0;padding:14px 16px;border-radius:8px;' +
+      'background:#3a2418;border:1px solid #6b4423;color:#ffcf9a;font-size:13px;line-height:1.7';
+    bar.innerHTML = '这个 DEMO 需要通过本地服务器打开（浏览器禁止 ' +
+      '<code>file://</code> 页面读取同目录 iframe，卡片会一直停在「渲染中」）。' +
+      '<br>在本目录执行 <code style="background:#000;padding:2px 6px;border-radius:3px">python -m http.server 8011</code>' +
+      '，然后访问 <code style="background:#000;padding:2px 6px;border-radius:3px">http://127.0.0.1:8011/demo.html</code>。' +
+      '<br>编辑器本身（index.html）双击就能用，不受影响。';
+    document.body.insertBefore(bar, document.body.children[1] || null);
+  }
+
+  function ready() {
+    return new Promise((resolve) => {
+      let n = 0;
+      (function tick() {
+        const w = frame.contentWindow;
+        if (w && w.WeiboStudio && w.document.getElementById('post')) return resolve(w);
+        if (++n > 240) return resolve(null);
+        setTimeout(tick, 50);
+      })();
+    });
+  }
+
+  /* 把某个场景的数据灌进编辑器实例（预览与导出都靠它，保证同源） */
+  async function applyScene(S, i) {
+    const sc = SCENES[i];
+    const plain = (o) => JSON.parse(JSON.stringify(o));
+    const spec = plain(sc.m);
+    const rpSpec = spec.repost || null;
+    delete spec.repost;
+
+    Object.assign(S.model, BASE, spec);
+    S.model.comments = sc.c ? plain(sc.c) : [];
+    S.model.repost = Object.assign(
+      { enabled: false, name: '', avatar: '', time: '', text: '' }, rpSpec || {});
+
+    S.setMedia(sc.media || [], 'main');
+    S.setMedia(sc.rpMedia || [], 'repost');
+    S.render();
+    await wait(90);
+  }
+
+  async function paintAll(w) {
+    const S = w.WeiboStudio;
+    const post = w.document.getElementById('post');
+
+    for (let i = 0; i < SCENES.length; i++) {
+      const box = gallery.querySelector('[data-frame="' + i + '"]');
+      const sz = gallery.querySelector('[data-sz="' + i + '"]');
+
+      await applyScene(S, i);
+
+      /* 把渲染结果整棵搬到审查页（同一份 CSS，按 class 重算样式） */
+      const node = post.cloneNode(true);
+      node.removeAttribute('id');
+      box.innerHTML = '';
+      box.appendChild(node);
+      box.classList.toggle('is-dark', S.model.theme === 'dark');
+
+      const z = curZoom();
+      sz.textContent = S.model.width + ' × ' + Math.round(node.getBoundingClientRect().height / z);
+
+      /* 单卡存图：走编辑器自身的 capture()，而不是本页 html2canvas。
+         本页卡片套在 zoom 里，页面级 html2canvas 会按缩放算尺寸而糊掉；
+         而且用同一套导出链路，存下来的图才等于用户真正拿到的图。 */
+      const btn = gallery.querySelector('[data-save="' + i + '"]');
+      let busy = false;
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (busy) return;
+        busy = true;
+        btn.textContent = '导出…';
+        try {
+          await applyScene(S, i);
+          const res = await S.capture(2);
+          const a = document.createElement('a');
+          a.download = 'weibo-' + String(i + 1).padStart(2, '0') + '.png';
+          a.href = res.canvas.toDataURL('image/png');
+          a.click();
+          btn.textContent = '已存';
+        } catch (err) {
+          btn.textContent = '失败';
+        }
+        busy = false;
+        setTimeout(() => { btn.textContent = '存图'; }, 1500);
+      });
+    }
+  }
+
+  let streaming = false;
+  async function run() {
+    if (location.protocol === 'file:') { showFileHint(); return; }
+    if (streaming) return;
+    streaming = true;
+    build();
+    const w = await ready();
+    if (!w) {
+      gallery.innerHTML = '<div class="d-fail"><b>读不到渲染环境。</b><br>' +
+        '直接双击打开（file:// 协议）时，浏览器禁止本页读取内嵌文档。请用本地服务器访问，' +
+        '例如在本目录执行 <b>python -m http.server 8011</b> 后打开 <b>http://127.0.0.1:8011/demo.html</b>。</div>';
+      streaming = false;
+      return;
+    }
+    await paintAll(w);
+    streaming = false;
+  }
+
+  /* 缩放：重建分列（列数随卡片实际显示宽度变化） */
+  document.getElementById('zoom').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    document.querySelectorAll('#zoom button').forEach((x) => x.classList.toggle('on', x === b));
+    document.documentElement.style.setProperty('--z', b.dataset.z);
+    run();
+  });
+
+  run();
+})();
+</script>
+</body>
+</html>

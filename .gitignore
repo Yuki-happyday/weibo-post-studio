@@ -1,0 +1,15 @@
+# 参考图：真机截图与逐像素对比图，含个人内容，不进仓库
+_ref/
+
+# 开发用探针页、临时脚本、试算产物
+_dev/
+
+# 系统垃圾文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器配置
+.vscode/
+.idea/
+*.swp
