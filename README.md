@@ -4,6 +4,8 @@
 
 纯前端、单页应用，**所有内容只在本机处理，不上传任何数据**。
 
+**在线使用**：<https://yuki-happyday.github.io/weibo-post-studio/>（不需要下载）
+
 ---
 
 ## 特性
@@ -46,9 +48,11 @@
 
 ## 快速开始
 
-直接用浏览器打开 `index.html` 即可，无需安装任何东西。
+**在线版**：直接打开 <https://yuki-happyday.github.io/weibo-post-studio/>，什么都不用装。
 
-如需通过本地服务器访问（推荐，行为与线上一致）：
+**本地版**：用浏览器打开 `index.html` 即可，无需安装任何东西。
+
+如需通过本地服务器访问（行为与线上一致）：
 
 ```bash
 python -m http.server 8000
@@ -57,7 +61,8 @@ python -m http.server 8000
 然后访问 `http://localhost:8000/index.html`。
 
 `demo.html` 是场景审查页，把 10 个典型状态并排渲染出来，方便核对细节。
-它内嵌了 iframe，**必须用本地服务器打开**，`file://` 下会被浏览器按 opaque origin 拦掉。
+
+它内嵌了 iframe，**必须经 HTTP 访问**——线上用上面的 Pages 地址即可；本地 `file://` 会被浏览器按 opaque origin 拦掉，卡片会停在「渲染中」并给出提示。
 
 ---
 
